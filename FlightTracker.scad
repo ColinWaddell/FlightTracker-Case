@@ -3,17 +3,6 @@ $fn = 48;
 /*
  * FlightTracker Case
  * ==================
- *
- * A two-piece case for a Raspberry Pi with a front-facing
- * screen. The case splits diagonally so each half fits on
- * a 220 mm build plate. Dovetails along the diagonal seam
- * locate the halves; screw-down tabs lock them together.
- *
- * Render a single half by setting SIDE below, or override
- * from the command line:
- *
- *   openscad -D 'SIDE="A"' -o half_a.stl FlightTracker.scad
- *   openscad -D 'SIDE="B"' -o half_b.stl FlightTracker.scad
  */
 
 SIDE = "A";          // "A" = upper-right half, "B" = lower-left half
@@ -46,7 +35,7 @@ split_angle = 45;
 standoff_height = 3;
 standoff_od     = 6;
 screw_hole_d    = 3;
-pi_mount_inset  = [5, 5];
+pi_mount_inset  = [15, 15];
 
 /*
  * Pi mount position.
@@ -65,8 +54,15 @@ pi_y = -1 * ((screen_height / 2) - standoff_od - pi_mount_inset[1]);
  * tracks the Pi location as pi_x / pi_y change.
  */
 power_hole_radius = 5;     // hole radius
-power_hole_offset_y = 10;  // offset from Pi mount Y (along the wall)
+power_hole_offset_y = 12;  // offset from Pi mount Y (along the wall)
 power_hole_offset_z = 20;   // offset from back wall (height on the wall)
+
+
+/* Screen fixing clips — rounded corner tabs that hold
+ * the screen in place at the front opening.
+ */
+screen_corner_radius = 3;   // radius of the rounded corner
+screen_clip_height   = 0.5; // how tall the clip is (Z)
 
 
 /* ============================================================
@@ -98,6 +94,8 @@ tab_pilot_od  = 1.5;   // pilot hole (self-tap side)
 tab_hole_od   = 2.5;   // clearance hole (screw side)
 tab_cs_od     = 4;     // countersink diameter
 
+tab_tol = 0.2; // allowance for print tolerance
+
 
 /* ============================================================
  *  Modules
@@ -120,7 +118,7 @@ module male_tab()
     translate([-x, -y, back_thickness / 4])
         rotate([0, 0, split_angle])
             difference() {
-                cylinder(d = tab_radius * 2, h = back_thickness / 2,
+                cylinder(d = (tab_radius * 2) - tab_tol, h = back_thickness / 2,
                          center = true, $fn = 6);
                 cylinder(d = tab_hole_od, h = 100,
                          center = true, $fn = 30);
@@ -150,7 +148,7 @@ module female_tab()
             union() {
                 cylinder(d = tab_pilot_od, h = 100,
                          center = true, $fn = 30);
-                cylinder(d = tab_radius * 2, h = back_thickness / 2,
+                cylinder(d = (tab_radius * 2) + tab_tol, h = back_thickness / 2,
                          center = true, $fn = 6);
             }
 }
@@ -257,17 +255,25 @@ module case_body()
                     ], center = true);
             }
 
-            /* Standoff frame around the Pi cavity opening */
-            translate([0, 0, -(back_thickness + eps / 2)])
-                difference() {
-                    cube([screen_width, screen_height, back_space],
-                        center = true);
-                    cube([
-                        screen_width  - standoff_thickness,
-                        screen_height - standoff_thickness,
-                        back_space
-                    ], center = true);
-                }
+            /* Standoff wedges in each corner for the screen
+             * to rest on. Each is a triangular prism
+             * (standoff_thickness on each leg) and back_space
+             * tall, using half the material of a square block.
+             */
+            for (sx = [-1, 1], sy = [-1, 1]) {
+                translate([
+                    sx * (screen_width  / 2 - standoff_thickness / 2),
+                    sy * (screen_height / 2 - standoff_thickness / 2),
+                    -(back_thickness + eps / 2)
+                ])
+                    rotate([0, 0, sx > 0 ? (sy > 0 ? 180 : 90) : (sy > 0 ? 270 : 0)])
+                        linear_extrude(back_space + eps, center = true)
+                            polygon([
+                                [-standoff_thickness / 2 - eps, -standoff_thickness / 2 - eps],
+                                [ standoff_thickness / 2 + eps, -standoff_thickness / 2 - eps],
+                                [-standoff_thickness / 2 - eps,  standoff_thickness / 2 + eps]
+                            ]);
+            }
         }
         /* Power supply cable hole through the back wall */
         power_hole();
@@ -291,6 +297,89 @@ module case()
     }
 }
 
+/*
+ * Screen fixing clips.
+ *
+ * Four small rounded-corner tabs at the front opening
+ * that overlap the inserted screen to hold it in place.
+ * Each is a square with a quarter-circle cutout, giving
+ * the inside corners of the screen opening a rounded look.
+ *
+ * The case body is centred on the origin, so the screen
+ * opening spans:
+ *   X: -screen_width/2  to  +screen_width/2
+ *   Y: -screen_height/2 to  +screen_height/2
+ *   Z: front face is at +screen_depth/2 (relative to body)
+ */
+module screen_fixing()
+{
+    /*
+     * Z position of the clips — at the front face of the
+     * case body. The front of the case is open (the screen
+     * is inserted through it), so the clips sit at the very
+     * front edge, overlapping the rim of the opening.
+     *
+     * In body-local coordinates (centred on origin) the
+     * front face is at:
+     *   +screen_depth/2 + back_space/2 + back_thickness/2
+     */
+    front_z = (screen_depth + back_space + back_thickness) / 2;
+    /*
+     * Clips span from the front face inward by
+     * screen_clip_height, overlapping the front rim of
+     * the case so they're connected to the wall material.
+     */
+    clip_z = front_z - screen_clip_height;
+
+    half_w = screen_width  / 2;
+    half_h = screen_height / 2;
+    r      = screen_corner_radius;
+
+    /*
+     * Each clip straddles the edge of the screen opening
+     * so half is in the wall material and half overlaps
+     * the screen. The square is centred on the opening
+     * edge, so it extends r/2 into the wall and r/2 into
+     * the opening.
+     */
+    o = r / 2;  // overlap into the opening
+
+    // Bottom-left corner
+    translate([-half_w - wall_thickness + r, -half_h - wall_thickness + r, clip_z])
+        linear_extrude(screen_clip_height)
+            difference() {
+                square([r, r]);
+                translate([r, r, 0])
+                    circle(r = r);
+            }
+
+    // Bottom-right corner
+    translate([half_w - wall_thickness, -half_h - wall_thickness + r, clip_z])
+        linear_extrude(screen_clip_height)
+            difference() {
+                square([r, r]);
+                translate([0, r, 0])
+                    circle(r = r);
+            }
+
+    // Top-left corner
+    translate([-half_w, half_h - r, clip_z])
+        linear_extrude(screen_clip_height)
+            difference() {
+                square([r, r]);
+                translate([r, 0, 0])
+                    circle(r = r);
+            }
+
+    // Top-right corner
+    translate([half_w - wall_thickness, half_h - r, clip_z])
+        linear_extrude(screen_clip_height)
+            difference() {
+                square([r, r]);
+                circle(r = r);
+            }
+}
+
 
 /* ============================================================
  *  Render
@@ -306,7 +395,11 @@ difference() {
     union() {
         male_tab();
         difference() {
-            case();
+            union(){
+                case();
+                translate([0, 0, (screen_depth + back_thickness + back_space) / 2])
+                    screen_fixing();
+            }
             chopping_block();
         }
     }
