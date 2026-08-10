@@ -287,21 +287,6 @@ module case_body()
         }
         /* Power supply cable hole through the back wall */
         power_hole();
-
-        /*
-         * Back wall material reduction.
-         */
-
-        for (sz = [1, -1]) {
-            translate([0, 0, (-(back_space) / 2) -5])
-                linear_extrude((back_thickness / 2) + eps, center = true)
-                    polygon([
-                        [-sz * screen_width / 2, sz * screen_height / 2],
-                        [-sz * screen_width / 2, -sz * screen_height / 2],
-                        [-sz * ((screen_width / 2) - ((screen_height / 2) - tab_radius * 2)), -sz * screen_height / 2],
-                        [sz/2 * sin(split_angle) * (screen_height / 2), sz * screen_height / 2],
-                    ]);
-        }
     }
 }
 
