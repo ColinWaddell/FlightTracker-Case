@@ -23,6 +23,7 @@ screen_depth  = 14;
 back_thickness  = 6;     // rear wall (also the dovetail/tab wall)
 wall_thickness  = 3;     // side walls
 support_width   = 3;     // screen support ledge width
+corner_radius   = 2;     // rounded corner radius (must be <= wall_thickness)
 
 /* Pi chamber */
 back_space         = 30;   // depth of the rear Pi cavity
@@ -239,12 +240,21 @@ module case_body()
     difference(){
         union() {
             difference() {
-                            /* Power supply cable hole through the back wall */
-                cube([
-                    screen_width  + 2 * wall_thickness,
-                    screen_height + 2 * wall_thickness,
-                    screen_depth + back_space + back_thickness
-                ], center = true);
+                /* Solid outer block with rounded vertical edges.
+                 * Built from a 2D rounded rectangle extruded
+                 * along Z. The offset() rounds the corners of
+                 * the square, and linear_extrude gives it
+                 * depth. Front and back faces stay flat.
+                 */
+                linear_extrude(
+                    screen_depth + back_space + back_thickness,
+                    center = true
+                )
+                    offset(r = corner_radius)
+                        square([
+                            screen_width  + 2 * wall_thickness,
+                            screen_height + 2 * wall_thickness
+                        ], center = true);
 
                 /* Interior cavity (screen + Pi chamber) */
                 translate([0, 0, (back_thickness + eps) / 2])
@@ -277,6 +287,21 @@ module case_body()
         }
         /* Power supply cable hole through the back wall */
         power_hole();
+
+        /*
+         * Back wall material reduction.
+         */
+
+        for (sz = [1, -1]) {
+            translate([0, 0, (-(back_space) / 2) -5])
+                linear_extrude((back_thickness / 2) + eps, center = true)
+                    polygon([
+                        [-sz * screen_width / 2, sz * screen_height / 2],
+                        [-sz * screen_width / 2, -sz * screen_height / 2],
+                        [-sz * ((screen_width / 2) - ((screen_height / 2) - tab_radius * 2)), -sz * screen_height / 2],
+                        [sz/2 * sin(split_angle) * (screen_height / 2), sz * screen_height / 2],
+                    ]);
+        }
     }
 }
 
