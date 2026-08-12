@@ -96,7 +96,7 @@ tab_b_x        = tab_cut_offset;
 tab_to_wall   = -10;              // tab offset toward the wall
 tab_to_cut    = -tab_radius / 2;  // tab offset toward the cut line
 
-tab_pilot_od  = 2.0;   // pilot hole (self-tap side)
+tab_pilot_od  = 2.5;   // pilot hole (self-tap side)
 tab_hole_od   = 2.5;   // clearance hole (screw side)
 tab_cs_od     = 4;     // countersink diameter
 
