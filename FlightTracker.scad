@@ -5,7 +5,7 @@ $fn = 48;
  * ==================
  */
 
-SIDE = "A";          // "A" = upper-right half, "B" = lower-left half
+SIDE = "B";          // "A" = upper-right half, "B" = lower-left half
 
 eps = 0.01;          // small offset to avoid coplanar faces
 
@@ -30,6 +30,7 @@ standoff_thickness = 10;   // frame thickness around the Pi cavity
 
 /* Diagonal split angle (degrees from horizontal) */
 split_angle = 45;
+wall_cut_angle = 20;
 
 /* Raspberry Pi mounting standoffs */
 standoff_height = 3;
@@ -189,25 +190,31 @@ module chopping_block()
     /* SIDE A keeps the upper-right, so remove the lower-left.
      * SIDE B keeps the lower-left, so remove the upper-right.
      */
+    wall_cut_mid_point = size / 4;
+    wall_cut_offset = tan(90 - wall_cut_angle) * wall_cut_mid_point;
     poly = SIDE == "A"
         ? [
             [-size, -size],
-            [x_bottom, -size],
+            [x_bottom + wall_cut_offset, -size],
+            [x_bottom + wall_cut_offset, -wall_cut_mid_point],
             p1,
             p2,
-            [x_top, size],
+            [x_top - wall_cut_offset, wall_cut_mid_point],
+            [x_top - wall_cut_offset, size],
             [-size, size]
           ]
         : [
             [size, size],
-            [x_top, size],
+            [x_top - wall_cut_offset, size],
+            [x_top - wall_cut_offset, wall_cut_mid_point],
             p2,
             p1,
-            [x_bottom, -size],
+            [x_bottom + wall_cut_offset, -wall_cut_mid_point],
+            [x_bottom + wall_cut_offset, -size],
             [size, -size]
           ];
 
-    linear_extrude(size, center = true)
+    #linear_extrude(size, center = true)
         polygon(poly);
 }
 
