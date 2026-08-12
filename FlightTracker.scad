@@ -20,7 +20,7 @@ screen_height = 128 + 0.2;
 screen_depth  = 14 + 0.2;
 
 /* Case walls */
-back_thickness  = 6;     // rear wall (also the dovetail/tab wall)
+back_thickness  = 4;     // rear wall (also the dovetail/tab wall)
 wall_thickness  = 2;     // side walls
 support_width   = 2;     // screen support ledge width
 
@@ -82,6 +82,9 @@ screen_clip_height   = 0.5; // how tall the clip is (Z)
  *  lower half (SIDE B).
  */
 
+tab_thickness_ratio = 0.6;  // tab height as a fraction of back_thickness
+                          // 0.5 = half, 0.25 = quarter, 0.75 = three quarters
+
 tab_radius    = (screen_height / 4) / 2;  // tab hex radius
 tab_a_y       = screen_height / 3;        // tab A offset along Y
 tab_b_y       = -tab_a_y;                 // tab B offset along Y (mirrored)
@@ -118,15 +121,16 @@ module male_tab()
         ? tab_a_y + tab_to_wall
         : tab_b_y - tab_to_wall;
 
-    translate([-x, -y, back_thickness / 4])
+    translate([-x, -y, (back_thickness * tab_thickness_ratio) / 2])
         rotate([0, 0, split_angle])
             difference() {
-                cylinder(d = (tab_radius * 2) - tab_tol, h = back_thickness / 2,
+                cylinder(d = (tab_radius * 2) - tab_tol,
+                         h = back_thickness * tab_thickness_ratio,
                          center = true, $fn = 6);
                 cylinder(d = tab_hole_od, h = 100,
                          center = true, $fn = 30);
                 translate([0, 0, -1])
-                    cylinder(h = back_thickness / 2,
+                    cylinder(h = back_thickness * tab_thickness_ratio,
                              r1 = tab_cs_od, r2 = tab_hole_od / 4,
                              center = true, $fn = 30);
             }
@@ -146,12 +150,13 @@ module female_tab()
         ? tab_a_y + tab_to_wall
         : tab_b_y - tab_to_wall;
 
-    translate([x, y, back_thickness / 4])
+    translate([x, y, (back_thickness * tab_thickness_ratio) / 2])
         rotate([0, 0, split_angle])
             union() {
                 cylinder(d = tab_pilot_od, h = 100,
                          center = true, $fn = 30);
-                cylinder(d = (tab_radius * 2) + tab_tol, h = (back_thickness / 2) + tab_tol,
+                cylinder(d = (tab_radius * 2) + tab_tol,
+                         h = (back_thickness * tab_thickness_ratio) + tab_tol,
                          center = true, $fn = 6);
             }
 }
