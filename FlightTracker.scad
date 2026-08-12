@@ -14,19 +14,18 @@ eps = 0.01;          // small offset to avoid coplanar faces
  *  Dimensions
  * ============================================================ */
 
-/* Screen */
-screen_width  = 256;
-screen_height = 128;
-screen_depth  = 14;
+/* Screen + tolerance */
+screen_width  = 256 + 0.2;
+screen_height = 128 + 0.2;
+screen_depth  = 14 + 0.2;
 
 /* Case walls */
 back_thickness  = 6;     // rear wall (also the dovetail/tab wall)
-wall_thickness  = 3;     // side walls
-support_width   = 3;     // screen support ledge width
-corner_radius   = 2;     // rounded corner radius (must be <= wall_thickness)
+wall_thickness  = 2;     // side walls
+support_width   = 2;     // screen support ledge width
 
 /* Pi chamber */
-back_space         = 30;   // depth of the rear Pi cavity
+back_space         = 35;   // depth of the rear Pi cavity
 standoff_thickness = 10;   // frame thickness around the Pi cavity
 
 /* Diagonal split angle (degrees from horizontal) */
@@ -35,8 +34,8 @@ split_angle = 45;
 /* Raspberry Pi mounting standoffs */
 standoff_height = 3;
 standoff_od     = 6;
-screw_hole_d    = 3;
-pi_mount_inset  = [15, 15];
+screw_hole_d    = 2.5;
+pi_mount_inset  = [1, 15];
 
 /*
  * Pi mount position.
@@ -54,9 +53,9 @@ pi_y = -1 * ((screen_height / 2) - standoff_od - pi_mount_inset[1]);
  * Positioned relative to the Pi mount point so it
  * tracks the Pi location as pi_x / pi_y change.
  */
-power_hole_radius = 5;     // hole radius
-power_hole_offset_y = 12;  // offset from Pi mount Y (along the wall)
-power_hole_offset_z = 20;   // offset from back wall (height on the wall)
+power_hole_radius = 6;     // hole radius
+power_hole_offset_y = 14.75;  // offset from Pi mount Y (along the wall)
+power_hole_offset_z = 22.5;   // offset from back wall (height on the wall)
 
 
 /* Screen fixing clips — rounded corner tabs that hold
@@ -91,7 +90,7 @@ tab_b_x        = tab_cut_offset;
 tab_to_wall   = -10;              // tab offset toward the wall
 tab_to_cut    = -tab_radius / 2;  // tab offset toward the cut line
 
-tab_pilot_od  = 1.5;   // pilot hole (self-tap side)
+tab_pilot_od  = 2.0;   // pilot hole (self-tap side)
 tab_hole_od   = 2.5;   // clearance hole (screw side)
 tab_cs_od     = 4;     // countersink diameter
 
@@ -149,7 +148,7 @@ module female_tab()
             union() {
                 cylinder(d = tab_pilot_od, h = 100,
                          center = true, $fn = 30);
-                cylinder(d = (tab_radius * 2) + tab_tol, h = back_thickness / 2,
+                cylinder(d = (tab_radius * 2) + tab_tol, h = (back_thickness / 2) + tab_tol,
                          center = true, $fn = 6);
             }
 }
@@ -240,21 +239,16 @@ module case_body()
     difference(){
         union() {
             difference() {
-                /* Solid outer block with rounded vertical edges.
-                 * Built from a 2D rounded rectangle extruded
-                 * along Z. The offset() rounds the corners of
-                 * the square, and linear_extrude gives it
-                 * depth. Front and back faces stay flat.
+                /* Solid outer block with square vertical edges.
+                 * A simple cube sized by the screen dimensions
+                 * plus the wall thickness on each side. Front
+                 * and back faces stay flat.
                  */
-                linear_extrude(
-                    screen_depth + back_space + back_thickness,
-                    center = true
-                )
-                    offset(r = corner_radius)
-                        square([
-                            screen_width  + 2 * wall_thickness,
-                            screen_height + 2 * wall_thickness
-                        ], center = true);
+                cube([
+                    screen_width  + (2 * wall_thickness),
+                    screen_height + (2 * wall_thickness),
+                    screen_depth + back_space + back_thickness
+                ], center = true);
 
                 /* Interior cavity (screen + Pi chamber) */
                 translate([0, 0, (back_thickness + eps) / 2])
@@ -323,66 +317,42 @@ module case()
  */
 module screen_fixing()
 {
-    /*
-     * Z position of the clips — at the front face of the
-     * case body. The front of the case is open (the screen
-     * is inserted through it), so the clips sit at the very
-     * front edge, overlapping the rim of the opening.
-     *
-     * In body-local coordinates (centred on origin) the
-     * front face is at:
-     *   +screen_depth/2 + back_space/2 + back_thickness/2
-     */
     front_z = (screen_depth + back_space + back_thickness) / 2;
-    /*
-     * Clips span from the front face inward by
-     * screen_clip_height, overlapping the front rim of
-     * the case so they're connected to the wall material.
-     */
     clip_z = front_z - screen_clip_height;
 
     half_w = screen_width  / 2;
     half_h = screen_height / 2;
-    r      = screen_corner_radius;
+    r = screen_corner_radius;
 
-    /*
-     * Each clip straddles the edge of the screen opening
-     * so half is in the wall material and half overlaps
-     * the screen. The square is centred on the opening
-     * edge, so it extends r/2 into the wall and r/2 into
-     * the opening.
-     */
-    o = r / 2;  // overlap into the opening
-
-    // Bottom-left corner
-    translate([-half_w - wall_thickness + r, -half_h - wall_thickness + r, clip_z])
+    // Bottom-left
+    translate([-half_w, -half_h, clip_z])
         linear_extrude(screen_clip_height)
             difference() {
                 square([r, r]);
-                translate([r, r, 0])
+                translate([r, r])
                     circle(r = r);
             }
 
-    // Bottom-right corner
-    translate([half_w - wall_thickness, -half_h - wall_thickness + r, clip_z])
+    // Bottom-right
+    translate([half_w - r, -half_h, clip_z])
         linear_extrude(screen_clip_height)
             difference() {
                 square([r, r]);
-                translate([0, r, 0])
+                translate([0, r])
                     circle(r = r);
             }
 
-    // Top-left corner
+    // Top-left
     translate([-half_w, half_h - r, clip_z])
         linear_extrude(screen_clip_height)
             difference() {
                 square([r, r]);
-                translate([r, 0, 0])
+                translate([r, 0])
                     circle(r = r);
             }
 
-    // Top-right corner
-    translate([half_w - wall_thickness, half_h - r, clip_z])
+    // Top-right
+    translate([half_w - r, half_h - r, clip_z])
         linear_extrude(screen_clip_height)
             difference() {
                 square([r, r]);
