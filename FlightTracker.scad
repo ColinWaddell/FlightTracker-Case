@@ -94,6 +94,9 @@ tab_pilot_od  = 2.0;   // pilot hole (self-tap side)
 tab_hole_od   = 2.5;   // clearance hole (screw side)
 tab_cs_od     = 4;     // countersink diameter
 
+tab_flare    = 2;    // base flare width (mm)
+tab_flare_h  = 1.5;  // flare height (mm)
+
 tab_tol = 0.2; // allowance for print tolerance
 
 
@@ -102,9 +105,11 @@ tab_tol = 0.2; // allowance for print tolerance
  * ============================================================ */
 
 /*
- * Male tab — the hexagonal boss with a clearance hole that
- * the screw passes through. Rendered on the half that
- * carries the tab.
+ * Male tab — a round boss with a conical flare at the base
+ * so it meets the case wall with a smooth curve rather than
+ * a hard angle. A clearance hole through the centre lets
+ * the screw pass through. Rendered on the half that carries
+ * the tab.
  */
 module male_tab()
 {
@@ -115,13 +120,26 @@ module male_tab()
         ? tab_a_y + tab_to_wall
         : tab_b_y - tab_to_wall;
 
+    tab_od = (tab_radius * 2) - tab_tol;
+
     translate([-x, -y, back_thickness / 4])
         rotate([0, 0, split_angle])
             difference() {
-                cylinder(d = (tab_radius * 2) - tab_tol, h = back_thickness / 2,
-                         center = true, $fn = 6);
+                union() {
+                    /* Main round body */
+                    cylinder(d = tab_od, h = back_thickness / 2,
+                             center = true, $fn = 48);
+                    /* Conical flare at base */
+                    translate([0, 0, -back_thickness / 4 + tab_flare_h / 2])
+                        cylinder(h = tab_flare_h,
+                                 r1 = tab_radius + tab_flare,
+                                 r2 = tab_od / 2,
+                                 center = true, $fn = 48);
+                }
+                /* Clearance hole */
                 cylinder(d = tab_hole_od, h = 100,
                          center = true, $fn = 30);
+                /* Countersink */
                 translate([0, 0, -1])
                     cylinder(h = back_thickness / 2,
                              r1 = tab_cs_od, r2 = tab_hole_od / 4,
@@ -131,8 +149,9 @@ module male_tab()
 
 
 /*
- * Female tab — the hexagonal recess plus pilot hole cut
- * into the opposite half to receive the male tab.
+ * Female tab — the round recess plus pilot hole cut into
+ * the opposite half to receive the male tab. A matching
+ * chamfer at the opening accepts the conical flare.
  */
 module female_tab()
 {
@@ -143,13 +162,23 @@ module female_tab()
         ? tab_a_y + tab_to_wall
         : tab_b_y - tab_to_wall;
 
+    recess_od = (tab_radius * 2) + tab_tol;
+
     translate([x, y, back_thickness / 4])
         rotate([0, 0, split_angle])
             union() {
+                /* Pilot hole */
                 cylinder(d = tab_pilot_od, h = 100,
                          center = true, $fn = 30);
-                cylinder(d = (tab_radius * 2) + tab_tol, h = (back_thickness / 2) + tab_tol,
-                         center = true, $fn = 6);
+                /* Main round recess */
+                cylinder(d = recess_od, h = (back_thickness / 2) + tab_tol,
+                         center = true, $fn = 48);
+                /* Chamfer at opening to accept the flare */
+                translate([0, 0, -back_thickness / 4 - tab_tol / 2 + tab_flare_h / 2])
+                    cylinder(h = tab_flare_h + tab_tol,
+                             r1 = tab_radius + tab_flare + tab_tol,
+                             r2 = recess_od / 2,
+                             center = true, $fn = 48);
             }
 }
 
