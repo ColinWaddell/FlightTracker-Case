@@ -226,6 +226,23 @@ module power_hole()
             );
 }
 
+power_trim_width = 1; // mm
+
+module power_outline()
+{
+    cx = (screen_width + 2 * wall_thickness) / 2;
+    cy = pi_y + power_hole_offset_y;
+    cz = -(screen_depth + back_space + back_thickness) / 2
+        + back_thickness / 2
+        + power_hole_offset_z;
+
+    translate([cx, cy, cz])
+        rotate([0, 90, 0])
+            rotate_extrude()
+                translate([power_hole_radius, 0, 0])
+                    circle(d = power_trim_width);
+}
+
 
 /*
  * Case body — the hollow shell.
@@ -278,6 +295,7 @@ module case_body()
                                 [-standoff_thickness / 2 - eps,  standoff_thickness / 2 + eps]
                             ]);
             }
+            power_outline();
         }
         /* Power supply cable hole through the back wall */
         power_hole();
