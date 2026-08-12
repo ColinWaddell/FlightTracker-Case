@@ -26,7 +26,9 @@ support_width   = 2;     // screen support ledge width
 
 /* Pi chamber */
 back_space         = 35;   // depth of the rear Pi cavity
-standoff_thickness = 10;   // frame thickness around the Pi cavity
+standoff_thickness = 8.5;   // frame thickness around the Pi cavity
+standoff_radius = 15;
+chamfer_radius = 4.5;
 
 /* Diagonal split angle (degrees from horizontal) */
 split_angle = 45;
@@ -214,7 +216,7 @@ module chopping_block()
             [size, -size]
           ];
 
-    #linear_extrude(size, center = true)
+    linear_extrude(size, center = true)
         polygon(poly);
 }
 
@@ -291,6 +293,76 @@ module power_outline()
                     circle(d = power_trim_width);
 }
 
+/*
+ * Chamfer profile — the 2D shape extruded along each edge
+ * to form an internal chamfer: a square with a quarter
+ * circle removed.
+ */
+module chamfer_profile(r)
+{
+    difference() {
+        square(r, r);
+        circle(r);
+    }
+}
+
+/*
+ * Chamfer — one placed, rotated, extruded chamfer strip.
+ */
+module chamfer(pos, rot, length, r)
+{
+    translate(pos)
+        rotate(rot)
+            linear_extrude(height = length)
+                chamfer_profile(r);
+}
+
+/*
+ * Internal chamfers — four rounded strips along the inside
+ * edges of the back wall opening, one per corner.
+ */
+module internal_chamfers()
+{
+    radius = chamfer_radius;
+    // Sit the chamfer profile on the back wall's inner
+    // surface. The profile occupies world Z [z - radius, z],
+    // so z - radius must equal the inner surface:
+    //   (back_thickness - screen_depth - back_space) / 2
+    z = ((back_thickness - screen_depth - back_space) / 2) + radius;
+
+    // Top-left corner (runs along Y)
+    chamfer(
+        [(-screen_width / 2) + radius - eps, screen_height / 2, z],
+        [90, 180, 0],
+        screen_height,
+        radius
+    );
+
+    // Top-right corner (runs along Y)
+    chamfer(
+        [(screen_width / 2) - radius + eps, screen_height / 2, z],
+        [90, 90, 0],
+        screen_height,
+        radius
+    );
+
+    // Bottom-right corner (runs along X)
+    chamfer(
+        [screen_width / 2, radius - screen_height / 2, z],
+        [180, 90, 0],
+        screen_width,
+        radius
+    );
+
+    // Bottom-left corner (runs along X)
+    chamfer(
+        [-screen_width / 2, (screen_height / 2) - radius, z],
+        [0, 90, 0],
+        screen_width,
+        radius
+    );
+}
+
 
 /*
  * Case body — the hollow shell.
@@ -329,21 +401,20 @@ module case_body()
              * (standoff_thickness on each leg) and back_space
              * tall, using half the material of a square block.
              */
+            radius = standoff_radius;
             for (sx = [-1, 1], sy = [-1, 1]) {
                 translate([
-                    sx * (screen_width  / 2 - standoff_thickness / 2),
-                    sy * (screen_height / 2 - standoff_thickness / 2),
+                    sx * (screen_width  / 2 - radius),
+                    sy * (screen_height / 2 - radius),
                     -(back_thickness + eps / 2)
                 ])
-                    rotate([0, 0, sx > 0 ? (sy > 0 ? 180 : 90) : (sy > 0 ? 270 : 0)])
-                        linear_extrude(back_space + eps, center = true)
-                            polygon([
-                                [-standoff_thickness / 2 - eps, -standoff_thickness / 2 - eps],
-                                [ standoff_thickness / 2 + eps, -standoff_thickness / 2 - eps],
-                                [-standoff_thickness / 2 - eps,  standoff_thickness / 2 + eps]
-                            ]);
+                    rotate([0, 0, 180])
+                        rotate([0, 0, sx > 0 ? (sy > 0 ? 180 : 90) : (sy > 0 ? 270 : 0)])
+                            linear_extrude(back_space + eps, center = true)
+                                chamfer_profile(radius);
             }
             power_outline();
+            internal_chamfers();
         }
         /* Power supply cable hole through the back wall */
         power_hole();
