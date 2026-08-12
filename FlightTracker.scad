@@ -5,7 +5,7 @@ $fn = 48;
  * ==================
  */
 
-SIDE = "A";          // "A" = upper-right half, "B" = lower-left half
+SIDE = "B";          // "A" = upper-right half, "B" = lower-left half
 
 eps = 0.01;          // small offset to avoid coplanar faces
 
@@ -26,10 +26,13 @@ support_width   = 2;     // screen support ledge width
 
 /* Pi chamber */
 back_space         = 35;   // depth of the rear Pi cavity
-standoff_thickness = 10;   // frame thickness around the Pi cavity
+standoff_thickness = 8.5;   // frame thickness around the Pi cavity
+standoff_radius = 15;
+chamfer_radius = 4.5;
 
 /* Diagonal split angle (degrees from horizontal) */
 split_angle = 45;
+wall_cut_angle = 20;
 
 /* Raspberry Pi mounting standoffs */
 standoff_height = 3;
@@ -94,9 +97,6 @@ tab_pilot_od  = 2.0;   // pilot hole (self-tap side)
 tab_hole_od   = 2.5;   // clearance hole (screw side)
 tab_cs_od     = 4;     // countersink diameter
 
-tab_flare    = 2;    // base flare width (mm)
-tab_flare_h  = 1.5;  // flare height (mm)
-
 tab_tol = 0.2; // allowance for print tolerance
 
 
@@ -105,11 +105,9 @@ tab_tol = 0.2; // allowance for print tolerance
  * ============================================================ */
 
 /*
- * Male tab — a round boss with a conical flare at the base
- * so it meets the case wall with a smooth curve rather than
- * a hard angle. A clearance hole through the centre lets
- * the screw pass through. Rendered on the half that carries
- * the tab.
+ * Male tab — the hexagonal boss with a clearance hole that
+ * the screw passes through. Rendered on the half that
+ * carries the tab.
  */
 module male_tab()
 {
@@ -120,26 +118,13 @@ module male_tab()
         ? tab_a_y + tab_to_wall
         : tab_b_y - tab_to_wall;
 
-    tab_od = (tab_radius * 2) - tab_tol;
-
     translate([-x, -y, back_thickness / 4])
         rotate([0, 0, split_angle])
             difference() {
-                union() {
-                    /* Main round body */
-                    cylinder(d = tab_od, h = back_thickness / 2,
-                             center = true, $fn = 48);
-                    /* Conical flare at base */
-                    translate([0, 0, -back_thickness / 4 + tab_flare_h / 2])
-                        cylinder(h = tab_flare_h,
-                                 r1 = tab_radius + tab_flare,
-                                 r2 = tab_od / 2,
-                                 center = true, $fn = 48);
-                }
-                /* Clearance hole */
+                cylinder(d = (tab_radius * 2) - tab_tol, h = back_thickness / 2,
+                         center = true, $fn = 6);
                 cylinder(d = tab_hole_od, h = 100,
                          center = true, $fn = 30);
-                /* Countersink */
                 translate([0, 0, -1])
                     cylinder(h = back_thickness / 2,
                              r1 = tab_cs_od, r2 = tab_hole_od / 4,
@@ -149,9 +134,8 @@ module male_tab()
 
 
 /*
- * Female tab — the round recess plus pilot hole cut into
- * the opposite half to receive the male tab. A matching
- * chamfer at the opening accepts the conical flare.
+ * Female tab — the hexagonal recess plus pilot hole cut
+ * into the opposite half to receive the male tab.
  */
 module female_tab()
 {
@@ -162,23 +146,13 @@ module female_tab()
         ? tab_a_y + tab_to_wall
         : tab_b_y - tab_to_wall;
 
-    recess_od = (tab_radius * 2) + tab_tol;
-
     translate([x, y, back_thickness / 4])
         rotate([0, 0, split_angle])
             union() {
-                /* Pilot hole */
                 cylinder(d = tab_pilot_od, h = 100,
                          center = true, $fn = 30);
-                /* Main round recess */
-                cylinder(d = recess_od, h = (back_thickness / 2) + tab_tol,
-                         center = true, $fn = 48);
-                /* Chamfer at opening to accept the flare */
-                translate([0, 0, -back_thickness / 4 - tab_tol / 2 + tab_flare_h / 2])
-                    cylinder(h = tab_flare_h + tab_tol,
-                             r1 = tab_radius + tab_flare + tab_tol,
-                             r2 = recess_od / 2,
-                             center = true, $fn = 48);
+                cylinder(d = (tab_radius * 2) + tab_tol, h = (back_thickness / 2) + tab_tol,
+                         center = true, $fn = 6);
             }
 }
 
@@ -218,21 +192,27 @@ module chopping_block()
     /* SIDE A keeps the upper-right, so remove the lower-left.
      * SIDE B keeps the lower-left, so remove the upper-right.
      */
+    wall_cut_mid_point = size / 4;
+    wall_cut_offset = tan(90 - wall_cut_angle) * wall_cut_mid_point;
     poly = SIDE == "A"
         ? [
             [-size, -size],
-            [x_bottom, -size],
+            [x_bottom + wall_cut_offset, -size],
+            [x_bottom + wall_cut_offset, -wall_cut_mid_point],
             p1,
             p2,
-            [x_top, size],
+            [x_top - wall_cut_offset, wall_cut_mid_point],
+            [x_top - wall_cut_offset, size],
             [-size, size]
           ]
         : [
             [size, size],
-            [x_top, size],
+            [x_top - wall_cut_offset, size],
+            [x_top - wall_cut_offset, wall_cut_mid_point],
             p2,
             p1,
-            [x_bottom, -size],
+            [x_bottom + wall_cut_offset, -wall_cut_mid_point],
+            [x_bottom + wall_cut_offset, -size],
             [size, -size]
           ];
 
@@ -313,6 +293,76 @@ module power_outline()
                     circle(d = power_trim_width);
 }
 
+/*
+ * Chamfer profile — the 2D shape extruded along each edge
+ * to form an internal chamfer: a square with a quarter
+ * circle removed.
+ */
+module chamfer_profile(r)
+{
+    difference() {
+        square(r, r);
+        circle(r);
+    }
+}
+
+/*
+ * Chamfer — one placed, rotated, extruded chamfer strip.
+ */
+module chamfer(pos, rot, length, r)
+{
+    translate(pos)
+        rotate(rot)
+            linear_extrude(height = length)
+                chamfer_profile(r);
+}
+
+/*
+ * Internal chamfers — four rounded strips along the inside
+ * edges of the back wall opening, one per corner.
+ */
+module internal_chamfers()
+{
+    radius = chamfer_radius;
+    // Sit the chamfer profile on the back wall's inner
+    // surface. The profile occupies world Z [z - radius, z],
+    // so z - radius must equal the inner surface:
+    //   (back_thickness - screen_depth - back_space) / 2
+    z = ((back_thickness - screen_depth - back_space) / 2) + radius;
+
+    // Top-left corner (runs along Y)
+    chamfer(
+        [(-screen_width / 2) + radius - eps, screen_height / 2, z],
+        [90, 180, 0],
+        screen_height,
+        radius
+    );
+
+    // Top-right corner (runs along Y)
+    chamfer(
+        [(screen_width / 2) - radius + eps, screen_height / 2, z],
+        [90, 90, 0],
+        screen_height,
+        radius
+    );
+
+    // Bottom-right corner (runs along X)
+    chamfer(
+        [screen_width / 2, radius - screen_height / 2, z],
+        [180, 90, 0],
+        screen_width,
+        radius
+    );
+
+    // Bottom-left corner (runs along X)
+    chamfer(
+        [-screen_width / 2, (screen_height / 2) - radius, z],
+        [0, 90, 0],
+        screen_width,
+        radius
+    );
+}
+
 
 /*
  * Case body — the hollow shell.
@@ -351,21 +401,20 @@ module case_body()
              * (standoff_thickness on each leg) and back_space
              * tall, using half the material of a square block.
              */
+            radius = standoff_radius;
             for (sx = [-1, 1], sy = [-1, 1]) {
                 translate([
-                    sx * (screen_width  / 2 - standoff_thickness / 2),
-                    sy * (screen_height / 2 - standoff_thickness / 2),
+                    sx * (screen_width  / 2 - radius),
+                    sy * (screen_height / 2 - radius),
                     -(back_thickness + eps / 2)
                 ])
-                    rotate([0, 0, sx > 0 ? (sy > 0 ? 180 : 90) : (sy > 0 ? 270 : 0)])
-                        linear_extrude(back_space + eps, center = true)
-                            polygon([
-                                [-standoff_thickness / 2 - eps, -standoff_thickness / 2 - eps],
-                                [ standoff_thickness / 2 + eps, -standoff_thickness / 2 - eps],
-                                [-standoff_thickness / 2 - eps,  standoff_thickness / 2 + eps]
-                            ]);
+                    rotate([0, 0, 180])
+                        rotate([0, 0, sx > 0 ? (sy > 0 ? 180 : 90) : (sy > 0 ? 270 : 0)])
+                            linear_extrude(back_space + eps, center = true)
+                                chamfer_profile(radius);
             }
             power_outline();
+            internal_chamfers();
         }
         /* Power supply cable hole through the back wall */
         power_hole();
