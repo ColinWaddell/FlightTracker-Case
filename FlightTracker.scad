@@ -155,19 +155,60 @@ module female_tab()
 
 
 /*
- * Chopping block — a large cube that removes the half of
- * the case we don't want to render. The block is rotated to
- * the split angle and shifted to one side depending on
- * which half is selected.
+ * Chopping block — removes the half of the case we don't
+ * want to render.
+ *
+ * The cut is a polyline extruded along Z. Through the
+ * interior cavity (|Y| < screen_height/2) the cut runs
+ * diagonally at split_angle, matching the original angled
+ * approach. Where the diagonal meets the top and bottom
+ * walls the cut turns vertical (aligned with the Y-axis)
+ * so the walls are cut squarely rather than diagonally.
+ *
+ * The diagonal passes through the origin at split_angle,
+ * meeting the interior edges at:
+ *   X = ∓ screen_height / (2 * tan(split_angle))
  */
 module chopping_block()
 {
-    size  = 1000;
-    slide = SIDE == "A" ? size / 2 : -size / 2;
+    size = 1000;
 
-    rotate([0, 0, 90 - split_angle])
-        translate([0, slide, 0])
-            cube([size, size, size], center = true);
+    x_bottom = -screen_height / (2 * tan(split_angle));
+    x_top    =  screen_height / (2 * tan(split_angle));
+
+    y_wall = screen_height / 2;
+
+    /* Boundary polyline (bottom → top):
+     *   vertical at x_bottom through the bottom wall,
+     *   diagonal from (x_bottom, -y_wall) to (x_top, +y_wall),
+     *   vertical at x_top through the top wall.
+     */
+    p1 = [x_bottom, -y_wall];
+    p2 = [x_top,    y_wall];
+
+    /* SIDE A keeps the upper-right, so remove the lower-left.
+     * SIDE B keeps the lower-left, so remove the upper-right.
+     */
+    poly = SIDE == "A"
+        ? [
+            [-size, -size],
+            [x_bottom, -size],
+            p1,
+            p2,
+            [x_top, size],
+            [-size, size]
+          ]
+        : [
+            [size, size],
+            [x_top, size],
+            p2,
+            p1,
+            [x_bottom, -size],
+            [size, -size]
+          ];
+
+    linear_extrude(size, center = true)
+        polygon(poly);
 }
 
 
