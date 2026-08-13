@@ -5,7 +5,7 @@ $fn = 48;
  * ==================
  */
 
-SIDE = "B";          // "A" = upper-right half, "B" = lower-left half
+SIDE = "A";          // "A" = upper-right half, "B" = lower-left half
 
 eps = 0.01;          // small offset to avoid coplanar faces
 
@@ -15,9 +15,9 @@ eps = 0.01;          // small offset to avoid coplanar faces
  * ============================================================ */
 
 /* Screen + tolerance */
-screen_width  = 256 + 0.2;
-screen_height = 128 + 0.2;
-screen_depth  = 14 + 0.2;
+screen_width  = 256 + 0.5;
+screen_height = 128 + 0.5;
+screen_depth  = 14 + 0.5;
 
 /* Case walls */
 back_thickness  = 4;     // rear wall (also the dovetail/tab wall)
@@ -28,11 +28,11 @@ support_width   = 2;     // screen support ledge width
 back_space         = 35;   // depth of the rear Pi cavity
 standoff_thickness = 8.5;   // frame thickness around the Pi cavity
 standoff_radius = 15;
-chamfer_radius = 4.5;
+chamfer_radius = 15;
 
 /* Diagonal split angle (degrees from horizontal) */
 split_angle = 45;
-wall_cut_angle = 20;
+wall_cut_angle = 35;
 
 /* Raspberry Pi mounting standoffs */
 standoff_height = 3;
@@ -100,7 +100,7 @@ tab_pilot_od  = 2.5;   // pilot hole (self-tap side)
 tab_hole_od   = 2.5;   // clearance hole (screw side)
 tab_cs_od     = 4;     // countersink diameter
 
-tab_tol = 0.2; // allowance for print tolerance
+tab_tol = 0.5; // allowance for print tolerance
 
 
 /* ============================================================
@@ -423,6 +423,8 @@ module case_body()
         }
         /* Power supply cable hole through the back wall */
         power_hole();
+        translate([(screen_width - 40)/2, -(screen_height - 60 - (chamfer_radius*2))/2, -(screen_depth + back_space - 100 - back_thickness)/2])
+            cube([40, 60, 100], center=true);
     }
 }
 
