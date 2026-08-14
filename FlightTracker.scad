@@ -17,7 +17,7 @@ eps = 0.01;          // small offset to avoid coplanar faces
 /* Screen + tolerance */
 screen_width  = 256 + 0.5;
 screen_height = 128 + 0.5;
-screen_depth  = 14 + 0.5;
+screen_depth  = 14 + 1;
 
 /* Case walls */
 back_thickness  = 4;     // rear wall (also the dovetail/tab wall)
@@ -64,7 +64,7 @@ power_hole_offset_z = 22.5;   // offset from back wall (height on the wall)
 /* Screen fixing clips — rounded corner tabs that hold
  * the screen in place at the front opening.
  */
-screen_corner_radius = 3;   // radius of the rounded corner
+screen_corner_radius = 5;   // radius of the rounded corner
 screen_clip_height   = 0.5; // how tall the clip is (Z)
 
 
