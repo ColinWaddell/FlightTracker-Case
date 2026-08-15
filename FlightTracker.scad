@@ -38,7 +38,7 @@ wall_cut_angle = 35;
 standoff_height = 3;
 standoff_od     = 6;
 screw_hole_d    = 2.5;
-pi_mount_inset  = [1, 15];
+pi_mount_inset  = [1, 43.46];
 
 /*
  * Pi mount position.
@@ -423,7 +423,11 @@ module case_body()
         }
         /* Power supply cable hole through the back wall */
         power_hole();
-        translate([(screen_width - 40)/2, -(screen_height - 60 - (chamfer_radius*2))/2, -(screen_depth + back_space - 100 - back_thickness)/2])
+        translate([
+            (screen_width - 40)/2,
+            -(screen_height - 118 - (chamfer_radius*2))/2,
+            -(screen_depth + back_space - 100 - back_thickness)/2
+        ])
             cube([40, 60, 100], center=true);
     }
 }
@@ -504,6 +508,42 @@ module screen_fixing()
             }
 }
 
+mounting_hole_opening = 10;
+mount_hole_tab = 5;
+mount_hole_depth = 4;
+mount_tab_thickness = 2;
+
+module mounting_hole(){
+    rotate([180, 0, 0])
+        union(){
+            difference(){
+                cylinder(mount_hole_depth, r1=mounting_hole_opening, r2=mounting_hole_opening, center=true);
+                translate([
+                    0,
+                    mounting_hole_opening / 2,
+                    0
+                ])
+                    cube([
+                        mounting_hole_opening * 2,
+                        mounting_hole_opening,
+                        mounting_hole_opening * 2],
+                        center=true
+                    );
+            }
+            translate([
+                0,
+                0,
+                -mount_tab_thickness
+            ])
+                cylinder(
+                    mount_hole_depth - mount_tab_thickness,
+                    r1=mounting_hole_opening,
+                    r2=mounting_hole_opening,
+                    center=true
+                );
+            cylinder(mount_hole_tab, r1=mount_hole_tab, r2=mount_hole_tab);
+        }
+}
 
 /* ============================================================
  *  Render
@@ -524,6 +564,16 @@ difference() {
                 translate([0, 0, (screen_depth + back_thickness + back_space) / 2])
                     screen_fixing();
             }
+            
+            // Mounting holes
+            translate([
+                (screen_width / 2) -30,
+                (screen_height / 2)- 30,
+                (mount_hole_depth / 2) - 0.5
+            ])
+                mounting_hole();
+            
+            // Split the model
             chopping_block();
         }
     }
