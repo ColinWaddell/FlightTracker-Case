@@ -5,7 +5,7 @@ $fn = 48;
  * ==================
  */
 
-SIDE = "A";          // "A" = upper-right half, "B" = lower-left half
+SIDE = "B";          // "A" = upper-right half, "B" = lower-left half
 
 eps = 0.01;          // small offset to avoid coplanar faces
 
@@ -508,41 +508,44 @@ module screen_fixing()
             }
 }
 
-mounting_hole_opening = 10;
-mount_hole_tab = 5;
-mount_hole_depth = 4;
-mount_tab_thickness = 2;
+mount_hole_opening = 5;
+mount_hole_tab = 2.5;
+mount_hole_depth = 200;
+mount_tab_thickness = 1;
 
 module mounting_hole(){
-    rotate([180, 0, 0])
+    difference(){
         union(){
+            translate([0, 0, mount_tab_thickness])
+                cylinder(mount_hole_depth - mount_tab_thickness, r1=mount_hole_opening, r2=mount_hole_opening);
+            // half-hole
             difference(){
-                cylinder(mount_hole_depth, r1=mounting_hole_opening, r2=mounting_hole_opening, center=true);
-                translate([
-                    0,
-                    mounting_hole_opening / 2,
-                    0
-                ])
+                cylinder(mount_hole_depth, r1=mount_hole_opening, r2=mount_hole_opening);
+                translate([-mount_hole_opening, 0, -eps])
                     cube([
-                        mounting_hole_opening * 2,
-                        mounting_hole_opening,
-                        mounting_hole_opening * 2],
-                        center=true
-                    );
+                        mount_hole_opening * 2,
+                        mount_hole_opening * 2,
+                        mount_hole_opening * 2
+                    ]);
+                
             }
-            translate([
-                0,
-                0,
-                -mount_tab_thickness
-            ])
-                cylinder(
-                    mount_hole_depth - mount_tab_thickness,
-                    r1=mounting_hole_opening,
-                    r2=mounting_hole_opening,
-                    center=true
-                );
-            cylinder(mount_hole_tab, r1=mount_hole_tab, r2=mount_hole_tab);
+            translate([0, 0, -20])
+                cylinder(22, r1=mount_hole_tab, r2=mount_hole_tab);
         }
+    }
+}
+
+module mounting_holes()
+{
+    for (sx = [-1, 1], sy = [-1, 1]) {
+        translate([
+            sx * ((screen_width / 2) - 30),
+            sy * ((screen_height / 2) - (chamfer_radius / 2)),
+            -eps
+        ])
+            rotate([0, 0, sy > 0 ? 0 : 180])
+                mounting_hole();
+    }
 }
 
 /* ============================================================
@@ -565,13 +568,7 @@ difference() {
                     screen_fixing();
             }
             
-            // Mounting holes
-            translate([
-                (screen_width / 2) -30,
-                (screen_height / 2)- 30,
-                (mount_hole_depth / 2) - 0.5
-            ])
-                mounting_hole();
+            mounting_holes();
             
             // Split the model
             chopping_block();
