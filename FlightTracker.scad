@@ -219,8 +219,8 @@ tab_fit_clearance = 0.5;
  * These were previously named as "opening" and "tab" but are
  * actually used as radii.
  */
-mount_hole_radius = 5;
-mount_tab_radius  = 2.5;
+mount_hole_radius = 6;
+mount_tab_radius  = 3.5;
 
 mount_tab_thickness = 1;
 mount_separation    = 80;
@@ -240,6 +240,16 @@ mount_hole_depth =
     + 2 * cut_overlap;
 
 /* ============================================================
+ *  Back-wall logo
+ * ============================================================ */
+logo_file      = "flight-tracker.svg";
+logo_thickness = 0.2;     // raised height on the outer back face
+logo_scale     = 3;
+logo_x         = -screen_width / 2.35;
+logo_y         = screen_height / 20;
+logo_rotate    = 0;
+
+/* ============================================================\
  *  Pi-side wall relief
  * ============================================================ */
 pi_relief_width  = 40;
@@ -921,6 +931,44 @@ module pi_side_relief()
 }
 
 /* ============================================================
+ *  Back-wall logo
+ * ============================================================ */
+module back_logo()
+{
+    /*
+     * The SVG is imported as 2D geometry in the XY plane.
+     *
+     * We extrude it 0.4 mm and place it on the OUTER rear
+     * surface (z_back_outer = 0), protruding outwards in
+     * the -Z direction.
+     */
+    /*
+     * The SVG is pixel art built from many adjacent/overlapping
+     * rectangles. Extruding that directly yields a non-manifold
+     * mesh (shared internal faces) that CGAL cannot convert to a
+     * Nef polyhedron.
+     *
+     * A tiny grow-then-shrink offset dissolves the coincident
+     * edges into a single clean outline before extrusion.
+     */
+    logo_merge = 0.01;
+
+    translate([
+        logo_x,
+        logo_y,
+        back_thickness - boolean_eps
+    ])
+        rotate([0, 0, logo_rotate])
+            scale(logo_scale)
+                linear_extrude(
+                    height = logo_thickness / logo_scale
+                )
+                    offset(r = -logo_merge)
+                        offset(r =  logo_merge)
+                            import(logo_file);
+}
+
+/* ============================================================
  *  Case body
  * ============================================================ */
 module case_body()
@@ -951,6 +999,8 @@ module case()
 {
     union() {
         case_body();
+
+        back_logo();
 
         raspberry_pi_mount_points(
             x =
