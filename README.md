@@ -103,4 +103,3 @@ You may use, modify and redistribute the design for non-commercial purposes, wit
 
 **Commercial use, including selling printed versions of this design, is not permitted.**
 
-See the [`LICENSE`](LICENSE) file for the full licence text.
